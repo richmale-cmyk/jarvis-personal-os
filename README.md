@@ -1,23 +1,76 @@
 # J.A.R.V.I.S. Personal OS
 
-**Richard Male · Head of Ground Operations · Air Arabia**
+**Just A Rather Very Intelligent System**  
+Personal AI Operating System for **Richard Male** — Head of Ground Operations, Air Arabia, Sharjah UAE.
 
-A personal AI operating system dashboard built with a JARVIS/HUD aesthetic. Deployed at [personal-os-silk.vercel.app](https://personal-os-silk.vercel.app).
+🔗 **Live:** https://jarvis-os-lovat.vercel.app  
+📦 **Repo:** https://github.com/richmale-cmyk/jarvis-personal-os
 
 ---
 
-## What it does
+## What it is
 
-- **Live Gmail inbox** — unread count, sender, subject (requires Cowork)
-- **Live Google Calendar** — today's schedule in GST (requires Cowork)
-- **JARVIS response terminal** — type queries, get intelligent responses in JARVIS style
-- **Voice output** — Web Speech API (British male voice) + ElevenLabs Daniel "Steady Broadcaster" voice agent
-- **Health log** — weight, sleep, steps, mood (localStorage)
-- **Budget tracker** — income, spend, categories in AED (localStorage)
-- **Reminders & Actions** — add/complete/delete reminders (localStorage)
-- **Active Directives & Learnings** — persistent ops notes (localStorage)
-- **Intel feed ticker** — aviation/ops news from Gmail
-- **Canvas particle network** — HUD background animation
+A full-screen HUD dashboard styled after the Marvel JARVIS computer. Dark aesthetic, cyan glow, particle network background, monospace fonts. Built to be a personal command centre — not a generic tool.
+
+Runs in two modes:
+- **Cowork (Claude desktop app)** — full live data: Gmail, Google Calendar, AI responses
+- **Vercel (standalone web)** — voice agent + text terminal + health/budget/reminders (all persisted)
+
+---
+
+## Features
+
+### Live data (Cowork mode)
+- **Gmail inbox** — unread count, senders, subjects, timestamps (GST)
+- **Google Calendar** — today's schedule in Dubai time
+- **Morning Brief** — AI-generated summary of inbox + schedule in JARVIS voice
+- **Daily Plan** — prioritised operational plan based on calendar and current context
+- **Draft Reply** — AI drafts email replies in Richard's voice
+
+### Always-on (Vercel + Cowork)
+- **Text terminal** — type any command or query, JARVIS responds in character
+- **Voice output** — Web Speech API (British male voice) reads all JARVIS responses aloud
+- **Voice agent** — ElevenLabs Daniel "Steady Broadcaster" AI agent (real-time two-way conversation)
+- **Intel ticker** — scrolling feed of aviation/ops news headlines
+- **Clock** — live GST (UTC+4) time and date
+
+### Personal data (localStorage, persists across sessions)
+- **Health log** — weight (kg), sleep (hrs), steps, mood (1–5), daily note
+- **Budget tracker** — monthly income, total spend, remaining balance, category breakdown (AED)
+- **Reminders & Actions** — add, tick off, delete. Survive page reloads.
+- **Active Directives & Learnings** — ops notes, strategic priorities, key learnings. Pre-loaded with current context.
+
+---
+
+## JARVIS character & context
+
+JARVIS knows who Richard is. Every response is in character — intelligent, direct, slightly formal, British. The following context is embedded:
+
+**Role & company**
+- Richard Male, Head of Ground Operations, Air Arabia, Sharjah UAE
+- ~3 weeks into role (hired to professionalise a fast-growing, immature ops function)
+- 120 aircraft on order — must scale before the fleet arrives
+
+**Background**
+- 20+ years airline ground ops: easyJet (17yrs, Deputy Head Ground Ops) → Qantas (Head of Ops, Sydney Airport) → Swissport (Global Head GH, Zurich) → Air Arabia (now)
+- Deep LCC + FSC + handler-side experience — rare dual perspective
+
+**Active projects**
+| Project | Status |
+|---|---|
+| Org restructure | Collapse 3 regional heads → single accountability model |
+| CEO perception | 22yr CEO forms impressions and sticks to them — feed data to update |
+| ISA engagement | Air Arabia's internal IT company — monthly meeting cadence set |
+| Team development | Adrien (strongest, not strategic), Anda (new/weak), Shadi (good area mgr, can't step up) |
+| Category management | Leverage scale across GH suppliers — no contract management exists yet |
+| Onboarding/assessment | Building relationships, learning the operation |
+
+**Key learnings embedded**
+- Operation grew on personal relationships — professionalise without breaking what works
+- OCC manages stations via "explain yourself" emails — immature, needs redesign
+- CEO has been at Air Arabia 22 years, forms strong impressions — needs data, not narrative
+- Benchmark = easyJet + Qantas — adapt proven models, don't invent from scratch
+- Just Culture / human factors lens: blame the system, not the person
 
 ---
 
@@ -25,62 +78,89 @@ A personal AI operating system dashboard built with a JARVIS/HUD aesthetic. Depl
 
 ```
 jarvis-vercel/
-├── index.html          # Full self-contained HUD dashboard
+├── public/
+│   └── index.html        # Full HUD dashboard (self-contained HTML/CSS/JS)
 ├── api/
-│   └── chat.js         # Vercel Edge Function → Claude API (for standalone terminal)
-├── vercel.json         # Deployment config
+│   └── chat.js           # Vercel Edge Function → Anthropic Claude API
+├── package.json          # Minimal — static site, no framework
+├── vercel.json           # Deployment config
 └── README.md
 ```
+
+### How the terminal works
+- **In Cowork:** `window.cowork.askClaude()` → Claude Sonnet via Cowork connector
+- **On Vercel:** `fetch('/api/chat')` → Edge Function → Anthropic API (`claude-haiku-4-5-20251001`) → response back to UI
+
+### Voice agent
+- Provider: ElevenLabs Conversational AI
+- Agent ID: `agent_7901kv62dv18e86tsre2dghafmnx`
+- Voice: Daniel — Steady Broadcaster (`onwK4e9ZLuTAKqWW03F9`)
+- Model: Flash (eleven_flash_v2)
+- First message: *"Good evening, Mr Male. JARVIS online. All systems nominal. How may I assist?"*
+- System prompt: full Air Arabia / Richard Male context loaded
+
+### MCP connectors (Cowork mode)
+| Connector | ID |
+|---|---|
+| Gmail | `mcp__030a1145-bd06-4105-ba0b-7628745cb597__search_threads` |
+| Google Calendar | `mcp__85fcfc1f-459a-4a4a-8b2b-1439a7d8b521__list_events` |
 
 ---
 
 ## Deployment
 
+### Vercel
 ```bash
 cd jarvis-vercel
 npx vercel --prod
 ```
+Project: `richmale-cmyks-projects/jarvis-os`  
+Alias: https://jarvis-os-lovat.vercel.app
 
-Linked to Vercel project: `richmale-cmyks-projects/personal-os`
-
----
-
-## Environment variables (Vercel)
+### Environment variables
+Go to: https://vercel.com/richmale-cmyks-projects/jarvis-os/settings/environment-variables
 
 | Variable | Purpose |
 |---|---|
-| `ANTHROPIC_API_KEY` | Powers the command terminal in standalone mode |
+| `ANTHROPIC_API_KEY` | Powers text terminal in standalone Vercel mode |
 
-Set via: Vercel dashboard → Project Settings → Environment Variables
-
----
-
-## Voice agent
-
-ElevenLabs Conversational AI agent: `agent_7901kv62dv18e86tsre2dghafmnx`
-- Voice: Daniel — Steady Broadcaster (`onwK4e9ZLuTAKqWW03F9`)
-- Model: Flash (eleven_flash_v2)
-- First message: *"Good evening, Mr Male. JARVIS online. All systems nominal."*
+### GitHub sync
+```bash
+git add .
+git commit -m "your message"
+git push
+```
 
 ---
 
-## Key context loaded into JARVIS
+## Design
 
-- Air Arabia Ground Ops — 120 aircraft on order
-- Org restructure: collapse 3 regional heads → single accountability
-- Team: Adrien (strongest, not strategic), Anda (new/weak), Shadi (good area mgr, can't step up)
-- CEO: 22 years at Air Arabia, forms impressions and sticks to them
-- Benchmark: easyJet + Qantas
-
----
-
-## Modes
-
-| Mode | Terminal | Email/Cal | Voice |
-|---|---|---|---|
-| **Cowork** (Claude desktop) | ✅ Full AI | ✅ Live | ✅ |
-| **Vercel standalone** | ✅ Via /api/chat | — | ✅ ElevenLabs widget |
+- Background: `#030810` (near-black deep blue)
+- Primary: `#00d4ff` (cyan)
+- Accent: `#6633ff` (purple)
+- Green: `#00ff88` / Orange: `#ff6b35` / Red: `#ff3355`
+- Font: Courier New / Lucida Console (monospace throughout)
+- Canvas particle network background (80 nodes, animated)
+- Sweep animations on each panel
+- Speaking glow pulse when voice is active
+- 4-column grid: Inbox+Health | JARVIS Main | Calendar+Directives | Reminders+Budget
 
 ---
 
-*Built session by session — June 2026*
+## Build history
+
+| Session | What was built |
+|---|---|
+| June 2026 | Initial JARVIS OS concept — V.A.U.L.T. reference screenshots |
+| June 2026 | Gmail + Calendar MCP integration via Cowork |
+| June 2026 | Canvas HUD, particle network, arc SVG, voice (Web Speech API) |
+| June 2026 | ElevenLabs Daniel voice agent created in Richard's account (`agent_7901kv62dv18e86tsre2dghafmnx`) |
+| June 2026 | Deployed to Vercel (`personal-os` then migrated to `jarvis-os`) |
+| June 2026 | v2 rewrite: 4-col layout, health panel, budget panel, reminders, directives/learnings |
+| June 2026 | Vercel Edge Function `/api/chat` for standalone text terminal |
+| June 2026 | GitHub repo created: `richmale-cmyk/jarvis-personal-os` |
+| June 2026 | Text terminal confirmed working via API test |
+
+---
+
+*"Good evening, Mr Male. All systems nominal."*
