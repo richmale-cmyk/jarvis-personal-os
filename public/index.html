@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. — Personal OS · Richard Male</title>
+<script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  color-scheme:dark;
+  --bg:#030810; --panel:rgba(3,15,38,.9); --c:#00d4ff; --c2:rgba(0,212,255,.4);
+  --p:#6633ff; --g:#00ff88; --o:#ff6b35; --r:#ff3355; --t:#c0dcea;
+  --td:rgba(192,220,234,.45); --b:rgba(0,212,255,.18);
+  --glow:0 0 16px rgba(0,212,255,.55); --glow2:0 0 40px rgba(0,212,255,.2);
+}
+html,body{background:var(--bg);color:var(--t);font-family:'Courier New','Lucida Console',monospace;height:100%;overflow:hidden;}
+#bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.4;}
+
+/* ── HUD GRID ── */
+#hud{
+  position:relative;z-index:1;height:100vh;
+  display:grid;
+  grid-template-rows:54px 1fr 48px;
+  grid-template-columns:220px 1fr 220px 220px;
+  gap:5px;padding:5px;
+}
+
+/* ── PANEL ── */
+.panel{
+  background:var(--panel);border:1px solid var(--b);border-radius:3px;
+  position:relative;overflow:hidden;padding:9px 11px;
+  box-shadow:var(--glow2),inset 0 0 30px rgba(0,212,255,.02);
+}
+.panel::before{content:'';position:absolute;top:0;left:0;width:12px;height:12px;border-top:2px solid var(--c);border-left:2px solid var(--c);opacity:.7;}
+.panel::after{content:'';position:absolute;bottom:0;right:0;width:12px;height:12px;border-bottom:2px solid var(--c);border-right:2px solid var(--c);opacity:.7;}
+.sweep{position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,var(--c),transparent);animation:sweep 6s ease-in-out infinite;pointer-events:none;}
+@keyframes sweep{0%{top:0%;opacity:0;}5%{opacity:.7;}95%{opacity:.7;}100%{top:100%;opacity:0;}}
+.panel-label{font-size:7px;letter-spacing:3px;color:var(--c);text-transform:uppercase;opacity:.6;margin-bottom:7px;}
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--b),transparent);margin:6px 0;}
+
+/* ── HEADER ── */
+#header{
+  grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;background:rgba(2,10,28,.97);border:1px solid var(--b);border-radius:3px;
+  box-shadow:0 0 60px rgba(0,212,255,.1);
+}
+.logo{font-size:20px;font-weight:900;letter-spacing:9px;color:var(--c);text-shadow:var(--glow);}
+.tagline{font-size:7px;letter-spacing:2px;color:var(--td);text-transform:uppercase;margin-top:2px;}
+#status-row{display:flex;gap:16px;align-items:center;}
+.s-dot{display:flex;align-items:center;gap:4px;font-size:7px;letter-spacing:2px;color:var(--td);}
+.dot{width:5px;height:5px;border-radius:50%;}
+.dot.on{background:var(--g);box-shadow:0 0 5px var(--g);animation:pulse 2s infinite;}
+.dot.c{background:var(--c);box-shadow:0 0 5px var(--c);animation:pulse 2.5s infinite;}
+.dot.off{background:var(--td);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+#clock-block{text-align:right;}
+#time{font-size:26px;letter-spacing:4px;color:var(--c);text-shadow:var(--glow);}
+#date{font-size:7px;letter-spacing:2px;color:var(--td);margin-top:2px;}
+
+/* ── COLUMNS ── */
+#col1{grid-column:1;grid-row:2;display:flex;flex-direction:column;gap:5px;}
+#col2{grid-column:2;grid-row:2;display:flex;flex-direction:column;gap:5px;}
+#col3{grid-column:3;grid-row:2;display:flex;flex-direction:column;gap:5px;}
+#col4{grid-column:4;grid-row:2;display:flex;flex-direction:column;gap:5px;}
+
+/* ── INBOX ── */
+.stat-row{display:flex;align-items:flex-end;gap:10px;margin-bottom:6px;}
+.stat-big{font-size:34px;line-height:1;color:var(--c);text-shadow:var(--glow);letter-spacing:2px;}
+.stat-sub{font-size:7px;letter-spacing:2px;color:var(--td);text-transform:uppercase;}
+.email-item{padding:6px 0;border-bottom:1px solid rgba(0,212,255,.05);cursor:pointer;}
+.email-item:last-child{border-bottom:none;}
+.email-sender{font-size:8px;color:var(--c);letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.email-subject{font-size:9px;color:var(--t);margin:2px 0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.4;}
+.email-time{font-size:7px;color:var(--td);letter-spacing:1px;}
+
+/* ── HEALTH PANEL ── */
+.metric-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(0,212,255,.05);}
+.metric-row:last-child{border-bottom:none;}
+.metric-lbl{font-size:8px;color:var(--td);letter-spacing:1px;}
+.metric-val{font-size:13px;color:var(--g);letter-spacing:1px;cursor:pointer;}
+.metric-val:hover{color:#fff;text-shadow:0 0 8px var(--g);}
+.metric-unit{font-size:7px;color:var(--td);}
+.health-edit{background:transparent;border:none;border-bottom:1px solid var(--b);color:var(--g);font-family:inherit;font-size:11px;width:55px;text-align:right;outline:none;padding:2px;}
+
+/* ── JARVIS MAIN ── */
+#main-panel{flex:1;display:flex;flex-direction:column;}
+#arc-svg{display:block;margin:0 auto 6px;}
+#response-area{
+  flex:1;background:rgba(0,212,255,.03);border:1px solid rgba(0,212,255,.08);
+  border-radius:2px;padding:12px;font-size:12px;line-height:1.9;color:var(--t);
+  overflow-y:auto;min-height:120px;margin-bottom:6px;
+}
+#response-area .j-prefix{
+  color:var(--c);font-size:8px;letter-spacing:3px;display:block;margin-bottom:6px;
+  text-shadow:var(--glow);
+}
+#wave{display:flex;align-items:center;gap:2px;height:20px;margin:4px 0;}
+.bar{width:3px;border-radius:2px;background:var(--c);opacity:.5;transition:height .1s;}
+#progress-track{height:1px;background:rgba(0,212,255,.06);margin:4px 0;overflow:hidden;border-radius:1px;}
+#progress-fill{height:100%;background:linear-gradient(90deg,var(--c),var(--p));width:0%;transition:width .3s;box-shadow:0 0 6px var(--c);}
+
+/* ── CMD INPUT ── */
+#cmd-row{display:flex;align-items:center;gap:8px;margin-top:5px;}
+.cmd-prompt{font-size:10px;color:var(--c);letter-spacing:3px;white-space:nowrap;}
+#cmd-input{
+  flex:1;background:rgba(0,212,255,.04);border:1px solid var(--b);border-radius:2px;
+  color:var(--c);font-family:inherit;font-size:10px;letter-spacing:2px;
+  padding:6px 8px;outline:none;transition:border-color .2s;
+}
+#cmd-input:focus{border-color:var(--c);background:rgba(0,212,255,.07);}
+#cmd-input::placeholder{color:var(--td);}
+
+/* ── CALENDAR ── */
+.event-item{padding:7px;margin-bottom:4px;border-left:2px solid var(--c);background:rgba(0,212,255,.04);border-radius:0 2px 2px 0;}
+.event-time{font-size:8px;color:var(--c);letter-spacing:1px;margin-bottom:2px;}
+.event-title{font-size:9px;color:var(--t);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ── DIRECTIVES / NOTES ── */
+.dir-item{display:flex;align-items:flex-start;gap:7px;padding:5px 0;border-bottom:1px solid rgba(0,212,255,.05);font-size:9px;line-height:1.5;}
+.dir-item:last-child{border-bottom:none;}
+.dir-status{font-size:6px;letter-spacing:1px;white-space:nowrap;padding:1px 3px;border-radius:1px;flex-shrink:0;margin-top:1px;}
+.dir-status.active{background:rgba(0,255,136,.13);color:var(--g);border:1px solid rgba(0,255,136,.25);}
+.dir-status.warn{background:rgba(255,107,53,.1);color:var(--o);border:1px solid rgba(255,107,53,.25);}
+.dir-status.new{background:rgba(102,51,255,.13);color:#aa88ff;border:1px solid rgba(102,51,255,.25);}
+.dir-status.note{background:rgba(0,212,255,.08);color:var(--c);border:1px solid rgba(0,212,255,.2);}
+.dir-txt{flex:1;color:var(--t);}
+
+/* ── REMINDERS ── */
+.rem-item{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(0,212,255,.05);}
+.rem-item:last-child{border-bottom:none;}
+.rem-check{width:10px;height:10px;border:1px solid var(--b);border-radius:1px;flex-shrink:0;cursor:pointer;transition:.2s;}
+.rem-check.done{background:var(--g);border-color:var(--g);}
+.rem-txt{font-size:9px;color:var(--t);flex:1;line-height:1.4;}
+.rem-txt.done{text-decoration:line-through;color:var(--td);}
+.rem-del{font-size:9px;color:var(--r);cursor:pointer;opacity:.4;flex-shrink:0;}
+.rem-del:hover{opacity:1;}
+.rem-add-row{display:flex;gap:5px;margin-top:7px;}
+.rem-add-input{flex:1;background:transparent;border:none;border-bottom:1px solid var(--b);color:var(--c);font-family:inherit;font-size:9px;letter-spacing:1px;padding:3px 4px;outline:none;}
+.rem-add-input::placeholder{color:var(--td);}
+.rem-add-input:focus{border-color:var(--c);}
+
+/* ── BUDGET ── */
+.budget-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(0,212,255,.04);}
+.budget-row:last-child{border-bottom:none;}
+.budget-lbl{font-size:8px;color:var(--td);letter-spacing:1px;}
+.budget-val{font-size:11px;letter-spacing:1px;cursor:pointer;}
+.budget-val.income{color:var(--g);}
+.budget-val.expense{color:var(--o);}
+.budget-val.balance.ok{color:var(--g);}
+.budget-val.balance.warn{color:var(--o);}
+.budget-val.balance.crit{color:var(--r);}
+.budget-bar{width:100%;height:3px;background:rgba(0,212,255,.08);border-radius:2px;margin-top:5px;overflow:hidden;}
+.budget-fill{height:100%;border-radius:2px;transition:width .4s;}
+.budget-edit{background:transparent;border:none;border-bottom:1px solid var(--b);color:var(--g);font-family:inherit;font-size:10px;width:70px;text-align:right;outline:none;padding:2px;}
+
+/* ── ACTION DECK ── */
+#deck{
+  grid-column:1/-1;display:flex;align-items:center;gap:7px;padding:0 12px;
+  background:rgba(2,10,28,.97);border:1px solid var(--b);border-radius:3px;
+}
+.deck-lbl{font-size:7px;letter-spacing:3px;color:var(--td);white-space:nowrap;}
+.btn{
+  background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.18);color:var(--c);
+  font-family:inherit;font-size:7px;letter-spacing:2px;text-transform:uppercase;
+  padding:6px 12px;cursor:pointer;border-radius:2px;transition:all .2s;
+  white-space:nowrap;flex-shrink:0;
+}
+.btn:hover{background:rgba(0,212,255,.16);border-color:var(--c);box-shadow:var(--glow);color:#fff;}
+.btn:active{transform:scale(.97);}
+.btn.prime{border-color:rgba(0,212,255,.45);background:rgba(0,212,255,.11);}
+.btn.voice-on{color:var(--g);border-color:rgba(0,255,136,.3);background:rgba(0,255,136,.06);}
+.btn.voice-agent{color:#aa88ff;border-color:rgba(102,51,255,.3);background:rgba(102,51,255,.07);}
+.btn.exec{color:var(--c);border-color:rgba(0,212,255,.35);background:rgba(0,212,255,.1);padding:6px 10px;}
+
+/* ticker */
+#ticker-wrap{flex:1;min-width:0;overflow:hidden;}
+.t-lbl{font-size:6px;letter-spacing:3px;color:var(--td);}
+#ticker{white-space:nowrap;overflow:hidden;}
+#ticker-inner{display:inline-block;font-size:8px;color:var(--td);letter-spacing:1px;animation:tickscroll 50s linear infinite;}
+@keyframes tickscroll{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
+
+/* speaking */
+@keyframes speaking-glow{0%,100%{box-shadow:var(--glow2);}50%{box-shadow:0 0 60px rgba(0,212,255,.7);}}
+.speaking{animation:speaking-glow .4s ease-in-out infinite;}
+
+/* scrollbar */
+::-webkit-scrollbar{width:2px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--b);border-radius:2px;}
+.loading{font-size:8px;color:var(--td);letter-spacing:2px;animation:pulse 1.2s infinite;}
+
+/* ElevenLabs widget — hidden, triggered programmatically */
+elevenlabs-convai{
+  position:fixed;bottom:55px;right:10px;z-index:999;
+  --el-primary:#00d4ff;--el-background:#030810;
+  filter:drop-shadow(0 0 10px rgba(0,212,255,.5));
+}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<div id="hud">
+
+<!-- ── HEADER ── -->
+<header id="header">
+  <div>
+    <div class="logo">J.A.R.V.I.S.</div>
+    <div class="tagline">Just A Rather Very Intelligent System &nbsp;·&nbsp; Richard Male &nbsp;·&nbsp; Head of Ground Operations · Air Arabia</div>
+  </div>
+  <div id="status-row">
+    <div class="s-dot"><div class="dot on"></div> SYSTEMS ONLINE</div>
+    <div class="s-dot" id="gmail-dot"><div class="dot c"></div> GMAIL</div>
+    <div class="s-dot" id="cal-dot"><div class="dot c"></div> CALENDAR</div>
+    <div class="s-dot"><div class="dot on"></div> VOICE AGENT</div>
+    <div class="s-dot" id="ai-dot"><div class="dot c"></div> AI TERMINAL</div>
+  </div>
+  <div id="clock-block">
+    <div id="time">00:00:00</div>
+    <div id="date">SHARJAH · GST UTC+4</div>
+  </div>
+</header>
+
+<!-- ── COL 1: INBOX + HEALTH ── -->
+<div id="col1">
+
+  <!-- INBOX -->
+  <div class="panel" style="flex:1;">
+    <div class="sweep"></div>
+    <div class="panel-label">▸ INTEL · INBOX</div>
+    <div class="stat-row">
+      <div>
+        <div class="stat-big" id="unread-num">—</div>
+        <div class="stat-sub">UNREAD</div>
+      </div>
+      <div style="flex:1"></div>
+      <svg width="40" height="40" viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(0,212,255,.1)" stroke-width="2"/>
+        <circle cx="20" cy="20" r="16" fill="none" stroke="var(--c)" stroke-width="2"
+          stroke-dasharray="100" stroke-dashoffset="25" stroke-linecap="round"
+          transform="rotate(-90 20 20)"/>
+        <text x="20" y="24" text-anchor="middle" fill="var(--c)" font-size="7" font-family="Courier New" letter-spacing="1">LIVE</text>
+      </svg>
+    </div>
+    <div class="divider"></div>
+    <div id="email-list"><div class="loading">SCANNING INBOX...</div></div>
+  </div>
+
+  <!-- HEALTH -->
+  <div class="panel" style="flex-shrink:0;">
+    <div class="panel-label">▸ BIOMETRICS · HEALTH LOG</div>
+    <div class="metric-row">
+      <span class="metric-lbl">WEIGHT</span>
+      <span><span class="metric-val" onclick="editMetric('weight')" id="weight-val">—</span> <span class="metric-unit">KG</span></span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-lbl">SLEEP</span>
+      <span><span class="metric-val" onclick="editMetric('sleep')" id="sleep-val">—</span> <span class="metric-unit">HRS</span></span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-lbl">STEPS</span>
+      <span><span class="metric-val" onclick="editMetric('steps')" id="steps-val">—</span></span>
+    </div>
+    <div class="metric-row">
+      <span class="metric-lbl">MOOD</span>
+      <span id="mood-stars" style="cursor:pointer;font-size:10px;color:var(--o);">— — — — —</span>
+    </div>
+    <div class="divider"></div>
+    <div id="health-note" style="font-size:8px;color:var(--td);letter-spacing:1px;cursor:pointer;" onclick="editMetric('health-note')">◆ CLICK TO LOG NOTE</div>
+  </div>
+
+</div>
+
+<!-- ── COL 2: JARVIS MAIN ── -->
+<div id="col2">
+  <div class="panel" id="main-panel">
+    <div class="sweep"></div>
+
+    <svg id="arc-svg" width="240" height="48" viewBox="0 0 240 48">
+      <path d="M6 44 Q120 -20 234 44" fill="none" stroke="rgba(0,212,255,.08)" stroke-width="1.5"/>
+      <path d="M6 44 Q120 -20 234 44" fill="none" stroke="var(--c)" stroke-width="1.5"
+        stroke-linecap="round" stroke-dasharray="300" stroke-dashoffset="300" id="arc-path">
+        <animate attributeName="stroke-dashoffset" from="300" to="0" dur="2s" fill="freeze" begin="0.8s"/>
+      </path>
+      <circle cx="6"   cy="44" r="3" fill="var(--c)" opacity=".9"/>
+      <circle cx="60"  cy="10" r="2" fill="var(--c)" opacity=".6"/>
+      <circle cx="120" cy="2"  r="3.5" fill="var(--c)"/>
+      <circle cx="180" cy="10" r="2" fill="var(--c)" opacity=".6"/>
+      <circle cx="234" cy="44" r="3" fill="var(--c)" opacity=".9"/>
+      <text x="120" y="28" text-anchor="middle" fill="var(--c)" font-family="Courier New" font-size="6" letter-spacing="5" opacity=".6">ONLINE</text>
+    </svg>
+
+    <div class="panel-label">▸ JARVIS · RESPONSE TERMINAL</div>
+
+    <div id="response-area">
+      <span class="j-prefix">JARVIS:</span>Good evening, Mr Male. All systems nominal. Inbox scanned, schedule loaded, voice agent standing by. How may I assist?
+    </div>
+
+    <div id="wave"></div>
+
+    <div id="progress-track"><div id="progress-fill"></div></div>
+
+    <div id="cmd-row">
+      <span class="cmd-prompt">▸</span>
+      <input type="text" id="cmd-input" placeholder="ENTER COMMAND OR QUERY..." autocomplete="off" spellcheck="false"/>
+      <button class="btn exec" onclick="execCmd()">◈ EXECUTE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── COL 3: CALENDAR + DIRECTIVES ── -->
+<div id="col3">
+
+  <!-- Calendar -->
+  <div class="panel" style="flex:1;">
+    <div class="sweep"></div>
+    <div class="panel-label">▸ SCHEDULE · TODAY GST</div>
+    <div id="cal-list"><div class="loading">LOADING SCHEDULE...</div></div>
+  </div>
+
+  <!-- Directives & Key Learnings -->
+  <div class="panel" style="flex:1;overflow-y:auto;">
+    <div class="panel-label">▸ ACTIVE DIRECTIVES &amp; LEARNINGS</div>
+    <div id="dir-list">
+      <div class="dir-item"><span class="dir-status warn">PRIORITY</span><span class="dir-txt">Org restructure — collapse 3 regional heads to single accountability</span></div>
+      <div class="dir-item"><span class="dir-status warn">PRIORITY</span><span class="dir-txt">CEO perception — feed data, update his long-held impressions</span></div>
+      <div class="dir-item"><span class="dir-status active">ACTIVE</span><span class="dir-txt">ISA engagement — monthly meeting cadence established wk 3</span></div>
+      <div class="dir-item"><span class="dir-status active">ACTIVE</span><span class="dir-txt">Onboarding / assessment — build relationships, learn the op</span></div>
+      <div class="dir-item"><span class="dir-status active">ACTIVE</span><span class="dir-txt">Category management — leverage scale for GH supplier value</span></div>
+      <div class="dir-item"><span class="dir-status note">LEARNING</span><span class="dir-txt">Op grew on personal relationships — professionalise without breaking what works</span></div>
+      <div class="dir-item"><span class="dir-status note">LEARNING</span><span class="dir-txt">OCC manages stations via "explain yourself" emails — immature, needs redesign</span></div>
+      <div class="dir-item"><span class="dir-status note">LEARNING</span><span class="dir-txt">Adrien: best of 3 heads, not strategic. Anda: new/weak team. Shadi: good area mgr, can't step up</span></div>
+      <div class="dir-item"><span class="dir-status note">NOTE</span><span class="dir-txt">Benchmark = easyJet &amp; Qantas — adapt proven models, don't invent from scratch</span></div>
+    </div>
+    <button class="btn" style="margin-top:8px;width:100%;font-size:7px;" onclick="addDirective()">+ ADD DIRECTIVE / NOTE</button>
+  </div>
+
+</div>
+
+<!-- ── COL 4: REMINDERS + BUDGET ── -->
+<div id="col4">
+
+  <!-- Reminders -->
+  <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+    <div class="sweep"></div>
+    <div class="panel-label">▸ REMINDERS &amp; ACTIONS</div>
+    <div id="rem-list" style="flex:1;overflow-y:auto;"></div>
+    <div class="rem-add-row">
+      <input type="text" class="rem-add-input" id="rem-input" placeholder="ADD REMINDER..."/>
+      <button class="btn" style="padding:4px 8px;font-size:7px;" onclick="addReminder()">+</button>
+    </div>
+  </div>
+
+  <!-- Budget -->
+  <div class="panel" style="flex-shrink:0;">
+    <div class="panel-label">▸ BUDGET · MONTHLY (AED)</div>
+    <div class="budget-row">
+      <span class="budget-lbl">INCOME</span>
+      <span class="budget-val income" onclick="editBudget('income')" id="b-income">—</span>
+    </div>
+    <div class="budget-row">
+      <span class="budget-lbl">SPENT</span>
+      <span class="budget-val expense" onclick="editBudget('spent')" id="b-spent">—</span>
+    </div>
+    <div class="budget-row">
+      <span class="budget-lbl">REMAINING</span>
+      <span class="budget-val balance ok" id="b-remaining">—</span>
+    </div>
+    <div class="budget-bar"><div class="budget-fill" id="budget-fill-bar" style="width:0%;background:var(--g);"></div></div>
+    <div class="divider"></div>
+    <div style="font-size:7px;color:var(--td);letter-spacing:1px;margin-bottom:4px;">CATEGORIES</div>
+    <div id="budget-cats"></div>
+    <button class="btn" style="margin-top:6px;width:100%;font-size:7px;" onclick="addBudgetCat()">+ ADD CATEGORY</button>
+  </div>
+
+</div>
+
+<!-- ── ACTION DECK ── -->
+<div id="deck">
+  <span class="deck-lbl">CMD DECK</span>
+  <button class="btn prime" onclick="morningBrief()">◈ MORNING BRIEF</button>
+  <button class="btn" onclick="dailyPlan()">◈ DAILY PLAN</button>
+  <button class="btn" onclick="draftReply()">◈ DRAFT REPLY</button>
+  <button class="btn" onclick="addDirective()">◈ LOG NOTE</button>
+  <button class="btn" onclick="refreshAll()">↺ REFRESH</button>
+  <button class="btn voice-on" id="voice-btn" onclick="toggleVoice()">◈ VOICE ON</button>
+  <button class="btn voice-agent" id="agent-btn" onclick="triggerVoiceAgent()">◈ VOICE AGENT</button>
+  <div style="width:1px;height:26px;background:var(--b);flex-shrink:0;"></div>
+  <div id="ticker-wrap">
+    <div class="t-lbl">INTEL FEED</div>
+    <div id="ticker"><div id="ticker-inner">LOADING INTEL FEED...</div></div>
+  </div>
+</div>
+
+</div><!-- /hud -->
+
+<!-- ElevenLabs JARVIS Voice Agent -->
+<elevenlabs-convai agent-id="agent_7901kv62dv18e86tsre2dghafmnx"></elevenlabs-convai>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────
+const GMAIL = 'mcp__030a1145-bd06-4105-ba0b-7628745cb597__search_threads';
+const CAL   = 'mcp__85fcfc1f-459a-4a4a-8b2b-1439a7d8b521__list_events';
+const HAS_COWORK = typeof window.cowork !== 'undefined' && typeof window.cowork.callMcpTool === 'function';
+let voiceOn = true;
+let isSpeaking = false;
+
+// ── CANVAS PARTICLE NET ─────────────────────────────────────────────
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize(); window.addEventListener('resize', resize);
+const NODES = Array.from({length:80},()=>({
+  x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight,
+  vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3, r:Math.random()*1.8+.6
+}));
+(function drawBg(){
+  ctx.clearRect(0,0,W,H);
+  NODES.forEach(n=>{
+    n.x+=n.vx; n.y+=n.vy;
+    if(n.x<0||n.x>W) n.vx*=-1;
+    if(n.y<0||n.y>H) n.vy*=-1;
+  });
+  NODES.forEach((a,i)=>{
+    for(let j=i+1;j<NODES.length;j++){
+      const b=NODES[j], d=Math.hypot(a.x-b.x,a.y-b.y);
+      if(d<120){ ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+        ctx.strokeStyle=`rgba(0,180,255,${(1-d/120)*.22})`; ctx.lineWidth=.5; ctx.stroke(); }
+    }
+  });
+  NODES.forEach(n=>{
+    ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,212,255,.6)'; ctx.fill();
+  });
+  requestAnimationFrame(drawBg);
+})();
+
+// ── WAVE BARS ────────────────────────────────────────────────────────
+const waveEl = document.getElementById('wave');
+const barEls = [];
+for(let i=0;i<20;i++){
+  const b=document.createElement('div'); b.className='bar';
+  b.style.height='3px'; b.style.flex='1'; waveEl.appendChild(b); barEls.push(b);
+}
+let waveAnim;
+function startWave(){ clearInterval(waveAnim); waveAnim=setInterval(()=>{ barEls.forEach(b=>{ b.style.height=(Math.random()*16+3)+'px'; b.style.opacity=(0.3+Math.random()*.7).toFixed(2); }); },80); }
+function stopWave(){ clearInterval(waveAnim); barEls.forEach(b=>{ b.style.height='3px'; b.style.opacity='0.2'; }); }
+stopWave();
+
+// ── CLOCK ─────────────────────────────────────────────────────────────
+function tick(){
+  const gst=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Dubai'}));
+  const pad=n=>String(n).padStart(2,'0');
+  document.getElementById('time').textContent=`${pad(gst.getHours())}:${pad(gst.getMinutes())}:${pad(gst.getSeconds())}`;
+  const D=['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+  const M=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  document.getElementById('date').textContent=`${D[gst.getDay()]} ${gst.getDate()} ${M[gst.getMonth()]} ${gst.getFullYear()} · GST UTC+4`;
+}
+setInterval(tick,1000); tick();
+
+// ── VOICE (Web Speech API) ─────────────────────────────────────────
+const synth = window.speechSynthesis;
+let cachedVoice = null;
+function pickVoice(){
+  if(cachedVoice) return cachedVoice;
+  const v = synth.getVoices();
+  cachedVoice = v.find(x=>/en.GB/i.test(x.lang)&&/daniel/i.test(x.name))
+    || v.find(x=>/en.GB/i.test(x.lang)&&/male/i.test(x.name))
+    || v.find(x=>/en.GB/i.test(x.lang))
+    || v.find(x=>/en.AU/i.test(x.lang))
+    || v.find(x=>/en/i.test(x.lang)&&!/female|samantha|victoria|karen/i.test(x.name))
+    || v.find(x=>/en/i.test(x.lang)) || v[0] || null;
+  return cachedVoice;
+}
+if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=()=>{ cachedVoice=null; pickVoice(); };
+setTimeout(()=>pickVoice(),300);
+
+function speak(txt){
+  if(!voiceOn||!synth) return;
+  synth.cancel();
+  const clean=txt.replace(/[◈▸●◆►◇&<>]/g,'').trim();
+  const u=new SpeechSynthesisUtterance(clean);
+  const v=pickVoice(); if(v) u.voice=v;
+  u.pitch=0.78; u.rate=0.88; u.volume=0.92;
+  u.onstart=()=>{ document.getElementById('main-panel').classList.add('speaking'); startWave(); isSpeaking=true; };
+  u.onend=()=>{ document.getElementById('main-panel').classList.remove('speaking'); stopWave(); isSpeaking=false; };
+  u.onerror=()=>{ document.getElementById('main-panel').classList.remove('speaking'); stopWave(); isSpeaking=false; };
+  synth.speak(u);
+}
+function toggleVoice(){
+  voiceOn=!voiceOn;
+  const b=document.getElementById('voice-btn');
+  b.textContent=voiceOn?'◈ VOICE ON':'◈ VOICE OFF';
+  b.className=voiceOn?'btn voice-on':'btn';
+  if(!voiceOn) synth.cancel();
+}
+
+// ── VOICE AGENT (ElevenLabs widget trigger) ──────────────────────────
+function triggerVoiceAgent(){
+  const w=document.querySelector('elevenlabs-convai');
+  if(w){
+    // Try to click the widget's internal button via shadow DOM
+    try{
+      const sr=w.shadowRoot||w.attachShadow({mode:'open'});
+      const btn=sr.querySelector('button');
+      if(btn){ btn.click(); return; }
+    }catch(e){}
+    // Fallback: make visible and let user click
+    w.style.display='block';
+    speak('Voice agent is ready, Mr Male. Press the microphone button bottom-right to connect.');
+  }
+}
+
+// ── RESPONSE ─────────────────────────────────────────────────────────
+function setResponse(txt, shouldSpeak=true){
+  const area=document.getElementById('response-area');
+  area.innerHTML=`<span class="j-prefix">JARVIS:</span>${esc(txt)}`;
+  area.scrollTop=0;
+  if(shouldSpeak) speak(txt);
+  animProgress();
+}
+function animProgress(){
+  const el=document.getElementById('progress-fill'); let w=0;
+  const t=setInterval(()=>{ w+=5; el.style.width=w+'%'; if(w>=100){clearInterval(t);setTimeout(()=>{el.style.width='0%'},400);}},18);
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtTime(dt){
+  if(!dt) return '';
+  if(dt.length===10) return 'ALL DAY';
+  try{ return new Date(dt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Dubai'}); }
+  catch(e){ return dt.slice(11,16); }
+}
+function todayRange(){
+  const gst=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Dubai'}));
+  const y=gst.getFullYear(),m=String(gst.getMonth()+1).padStart(2,'0'),d=String(gst.getDate()).padStart(2,'0');
+  return [`${y}-${m}-${d}T00:00:00`,`${y}-${m}-${d}T23:59:59`];
+}
+function getMcpData(r){
+  if(r.structuredContent&&typeof r.structuredContent==='object'&&!Array.isArray(r.structuredContent)) return r.structuredContent;
+  try{ const txt=Array.isArray(r.content)?(r.content[0]?.text||'{}'):(r.content||'{}'); return JSON.parse(txt); }
+  catch(e){ return {}; }
+}
+async function jarvisAsk(prompt, data=[]){
+  const result=await window.cowork.askClaude(prompt, data);
+  if(typeof result==='string') return result;
+  if(result?.text) return result.text;
+  if(Array.isArray(result?.content)) return result.content.map(c=>c.text||'').join('');
+  if(result?.message) return result.message;
+  return String(result??'');
+}
+
+// ── EMAIL ─────────────────────────────────────────────────────────────
+async function loadEmail(){
+  if(!HAS_COWORK){
+    document.getElementById('unread-num').textContent='—';
+    document.getElementById('email-list').innerHTML='<div style="font-size:8px;color:var(--td)">◆ OPEN IN COWORK FOR LIVE DATA</div>';
+    document.querySelector('#gmail-dot .dot').className='dot off';
+    return;
+  }
+  try{
+    const r=await window.cowork.callMcpTool(GMAIL,{query:'is:unread in:inbox',pageSize:5});
+    const d=getMcpData(r); const threads=d.threads||[];
+    document.getElementById('unread-num').textContent=d.resultCountEstimate||threads.length;
+    document.getElementById('email-list').innerHTML=threads.length===0
+      ?'<div style="font-size:8px;color:var(--g)">● INBOX CLEAR</div>'
+      :threads.map(t=>{
+        const m=t.messages[0];
+        const sender=m.sender.replace(/<[^>]+>/g,'').replace(/"/g,'').trim();
+        return `<div class="email-item"><div class="email-sender">${esc(sender)}</div><div class="email-subject">${esc(m.subject||'(no subject)')}</div><div class="email-time">${fmtTime(m.date)} GST</div></div>`;
+      }).join('');
+  }catch(e){
+    document.getElementById('email-list').innerHTML='<div style="font-size:8px;color:var(--o)">⚠ SCAN ERROR</div>';
+  }
+}
+
+// ── CALENDAR ──────────────────────────────────────────────────────────
+async function loadCalendar(){
+  if(!HAS_COWORK){
+    document.getElementById('cal-list').innerHTML='<div style="font-size:8px;color:var(--td)">◆ OPEN IN COWORK FOR LIVE DATA</div>';
+    document.querySelector('#cal-dot .dot').className='dot off';
+    return;
+  }
+  try{
+    const [s,e]=todayRange();
+    const r=await window.cowork.callMcpTool(CAL,{startTime:s,endTime:e,pageSize:8});
+    const data=getMcpData(r); const events=data.events||[];
+    document.getElementById('cal-list').innerHTML=events.length===0
+      ?'<div style="font-size:8px;color:var(--td)">NO EVENTS TODAY</div>'
+      :events.map(ev=>{
+        const t=fmtTime(ev.start.dateTime||ev.start.date);
+        return `<div class="event-item"><div class="event-time">◆ ${t}</div><div class="event-title">${esc((ev.summary||'Event').replace(/^[^\w\s]+\s*/,''))}</div></div>`;
+      }).join('');
+  }catch(e){
+    document.getElementById('cal-list').innerHTML='<div style="font-size:8px;color:var(--o)">⚠ CALENDAR ERROR</div>';
+  }
+}
+
+// ── NEWS TICKER ───────────────────────────────────────────────────────
+async function loadNews(){
+  if(!HAS_COWORK){
+    document.getElementById('ticker-inner').textContent='◆ JARVIS INTEL FEED ONLINE · AVIATION & GROUND OPS MONITORING ACTIVE · AIR ARABIA · 120 AIRCRAFT ON ORDER · SHARJAH UAE ◆';
+    return;
+  }
+  try{
+    const r=await window.cowork.callMcpTool(GMAIL,{query:'newer_than:3d (from:flightglobal OR from:aviationweek OR subject:airline OR subject:"ground ops" OR subject:aviation)',pageSize:6});
+    const d=getMcpData(r);
+    const items=(d.threads||[]).map(t=>t.messages[0].subject).filter(Boolean);
+    document.getElementById('ticker-inner').textContent=items.length>0
+      ?items.map(s=>`◆ ${s}`).join('     ')
+      :'◆ INTEL FEED ACTIVE · AVIATION & OPS MONITORING ◆';
+  }catch(e){
+    document.getElementById('ticker-inner').textContent='◆ INTEL FEED ACTIVE ◆';
+  }
+}
+
+// ── CMD TERMINAL (works standalone via /api/chat) ─────────────────────
+async function execCmd(){
+  const inp=document.getElementById('cmd-input');
+  const cmd=inp.value.trim();
+  if(!cmd) return;
+  inp.value='';
+  setResponse(`Processing: "${cmd}"...`, false);
+
+  if(HAS_COWORK){
+    try{
+      const r=await jarvisAsk(`You are JARVIS — AI assistant to Richard Male, Head of Ground Operations at Air Arabia. Respond in JARVIS style — intelligent, direct, slightly formal, British. Query: ${cmd}`);
+      setResponse(r, true);
+    }catch(e){ setResponse('Query processing error. Please restate, Mr Male.', true); }
+    return;
+  }
+
+  // Standalone mode — call Vercel edge function
+  try{
+    const res=await fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({query:cmd})
+    });
+    if(!res.ok) throw new Error('API error');
+    const data=await res.json();
+    setResponse(data.response||'No response received.', true);
+  }catch(e){
+    setResponse('Terminal connection error. Voice agent fully operational — press ◈ VOICE AGENT, Mr Male.', true);
+  }
+}
+
+document.getElementById('cmd-input').addEventListener('keydown',e=>{ if(e.key==='Enter') execCmd(); });
+
+// ── MORNING BRIEF ─────────────────────────────────────────────────────
+async function morningBrief(){
+  if(!HAS_COWORK){ setResponse('Morning brief requires Cowork connection. Voice agent fully operational — press ◈ VOICE AGENT for a spoken brief, Mr Male.', true); return; }
+  setResponse('Compiling your morning operational brief, Mr Male. Stand by...', true);
+  try{
+    const [s,e]=todayRange();
+    const [er,cr]=await Promise.all([
+      window.cowork.callMcpTool(GMAIL,{query:'is:unread in:inbox',pageSize:10}),
+      window.cowork.callMcpTool(CAL,{startTime:s,endTime:e,pageSize:6})
+    ]);
+    const brief=await jarvisAsk(
+      `You are JARVIS, AI assistant to Richard Male (Head of Ground Operations, Air Arabia, 3 weeks in role). Give a concise morning brief in JARVIS style — intelligent, direct, slightly formal. 3-4 sentences. Include: unread email count and key senders, today's schedule highlights, one sharp operational observation.`,
+      [JSON.stringify(getMcpData(er)).slice(0,700), JSON.stringify(getMcpData(cr)).slice(0,500)]
+    );
+    setResponse(brief, true);
+  }catch(e){ setResponse('Morning brief encountered a system anomaly. Feeds may be temporarily unavailable. Please retry, Mr Male.', true); }
+}
+
+// ── DAILY PLAN ────────────────────────────────────────────────────────
+async function dailyPlan(){
+  if(!HAS_COWORK){ setResponse('Daily plan requires Cowork connection. Ask via ◈ VOICE AGENT for a spoken plan, Mr Male.', true); return; }
+  setResponse('Generating your prioritised daily operational plan...', true);
+  try{
+    const [s,e]=todayRange();
+    const cr=await window.cowork.callMcpTool(CAL,{startTime:s,endTime:e,pageSize:8});
+    const plan=await jarvisAsk(
+      `You are JARVIS. Richard Male is Head of Ground Ops at Air Arabia. 3 weeks in. Org restructure in progress (collapse 3 regional heads to single accountability). CEO perception management needed. Team: Adrien (best but not strategic), Anda (new/weak), Shadi (good Area Mgr, can't step up). 120 aircraft on order. Generate a punchy, prioritised daily plan — 4-5 bullet points, JARVIS style. Sharp, no padding.`,
+      [JSON.stringify(getMcpData(cr)).slice(0,500)]
+    );
+    setResponse(plan, true);
+  }catch(e){ setResponse('Unable to generate plan. Systems nominal — please retry.', true); }
+}
+
+// ── DRAFT REPLY ───────────────────────────────────────────────────────
+async function draftReply(){
+  setResponse('Which email shall I draft a reply to, Mr Male? Specify the sender or subject.', true);
+  const ref=prompt('JARVIS: State the email context (sender / subject / key points):');
+  if(!ref) return;
+  setResponse('Drafting reply...', false);
+  if(HAS_COWORK){
+    try{
+      const draft=await jarvisAsk(`Draft a professional reply from Richard Male, Head of Ground Operations, Air Arabia. British tone. Direct. Concise. Sign off: Richard. Context: "${ref}"`);
+      setResponse(draft, true);
+    }catch(e){ setResponse('Draft generation failed. Please retry.', true); }
+  } else {
+    try{
+      const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:`Draft a professional email reply from Richard Male, Head of Ground Operations, Air Arabia. British tone. Direct. Concise. Sign off as Richard. Context: ${ref}`})});
+      const data=await res.json();
+      setResponse(data.response, true);
+    }catch(e){ setResponse('Draft generation failed. Please retry.', true); }
+  }
+}
+
+// ── REFRESH ───────────────────────────────────────────────────────────
+async function refreshAll(){
+  document.getElementById('email-list').innerHTML='<div class="loading">SCANNING...</div>';
+  document.getElementById('cal-list').innerHTML='<div class="loading">LOADING...</div>';
+  setResponse('Refreshing all data feeds, Mr Male.', false);
+  await Promise.all([loadEmail(),loadCalendar(),loadNews()]);
+  setResponse('All systems refreshed. Feeds current.', true);
+}
+
+// ── ADD DIRECTIVE ─────────────────────────────────────────────────────
+function addDirective(){
+  const task=prompt('JARVIS: State your directive, note, or key learning, Mr Male.');
+  if(!task) return;
+  const type=prompt('Type (1=ACTIVE, 2=PRIORITY, 3=LEARNING, 4=NOTE):','4')||'4';
+  const statusMap={'1':['active','ACTIVE'],'2':['warn','PRIORITY'],'3':['note','LEARNING'],'4':['note','NOTE']};
+  const [cls,lbl]=statusMap[type]||statusMap['4'];
+  const list=document.getElementById('dir-list');
+  const div=document.createElement('div'); div.className='dir-item';
+  div.innerHTML=`<span class="dir-status ${cls}">${lbl}</span><span class="dir-txt">${esc(task)}</span>`;
+  list.prepend(div);
+  saveDirectives();
+  setResponse(`Logged: "${task}". Directive added, Mr Male.`, true);
+}
+
+function saveDirectives(){
+  const items=[...document.getElementById('dir-list').querySelectorAll('.dir-item')].map(d=>({
+    cls:d.querySelector('.dir-status').className.replace('dir-status ',''),
+    lbl:d.querySelector('.dir-status').textContent,
+    txt:d.querySelector('.dir-txt').textContent
+  }));
+  localStorage.setItem('jarvis_directives', JSON.stringify(items));
+}
+
+function loadDirectives(){
+  const saved=localStorage.getItem('jarvis_directives');
+  if(!saved) return;
+  try{
+    const items=JSON.parse(saved);
+    const list=document.getElementById('dir-list');
+    list.innerHTML='';
+    items.forEach(i=>{
+      const div=document.createElement('div'); div.className='dir-item';
+      div.innerHTML=`<span class="dir-status ${i.cls}">${i.lbl}</span><span class="dir-txt">${esc(i.txt)}</span>`;
+      list.appendChild(div);
+    });
+  }catch(e){}
+}
+
+// ── REMINDERS (localStorage) ──────────────────────────────────────────
+let reminders = [];
+function loadReminders(){
+  try{ reminders=JSON.parse(localStorage.getItem('jarvis_reminders')||'[]'); }
+  catch(e){ reminders=[]; }
+  renderReminders();
+}
+function saveReminders(){ localStorage.setItem('jarvis_reminders', JSON.stringify(reminders)); }
+function renderReminders(){
+  const list=document.getElementById('rem-list');
+  if(reminders.length===0){
+    list.innerHTML='<div style="font-size:8px;color:var(--td);padding:8px 0;">◆ NO ACTIVE REMINDERS</div>';
+    return;
+  }
+  list.innerHTML=reminders.map((r,i)=>`
+    <div class="rem-item">
+      <div class="rem-check${r.done?' done':''}" onclick="toggleReminder(${i})"></div>
+      <div class="rem-txt${r.done?' done':''}">${esc(r.text)}</div>
+      <div class="rem-del" onclick="deleteReminder(${i})">✕</div>
+    </div>`).join('');
+}
+function addReminder(){
+  const inp=document.getElementById('rem-input');
+  const txt=inp.value.trim(); if(!txt) return;
+  reminders.unshift({text:txt,done:false,created:Date.now()});
+  inp.value=''; saveReminders(); renderReminders();
+}
+function toggleReminder(i){ reminders[i].done=!reminders[i].done; saveReminders(); renderReminders(); }
+function deleteReminder(i){ reminders.splice(i,1); saveReminders(); renderReminders(); }
+document.getElementById('rem-input').addEventListener('keydown',e=>{ if(e.key==='Enter') addReminder(); });
+
+// ── HEALTH (localStorage) ─────────────────────────────────────────────
+let health = {};
+function loadHealth(){
+  try{ health=JSON.parse(localStorage.getItem('jarvis_health')||'{}'); }catch(e){ health={}; }
+  document.getElementById('weight-val').textContent=health.weight||'—';
+  document.getElementById('sleep-val').textContent=health.sleep||'—';
+  document.getElementById('steps-val').textContent=health.steps?parseInt(health.steps).toLocaleString():'—';
+  renderMood(health.mood||0);
+  document.getElementById('health-note').textContent=health.note||'◆ CLICK TO LOG NOTE';
+}
+function renderMood(m){
+  const s=document.getElementById('mood-stars');
+  s.textContent=['— — — — —','◆ ○ ○ ○ ○','◆ ◆ ○ ○ ○','◆ ◆ ◆ ○ ○','◆ ◆ ◆ ◆ ○','◆ ◆ ◆ ◆ ◆'][m]||'— — — — —';
+  s.style.color=['var(--td)','var(--r)','var(--o)','var(--o)','var(--g)','var(--g)'][m]||'var(--td)';
+  s.onclick=()=>{ const n=(((health.mood||0)+1)%6); health.mood=n; renderMood(n); saveHealth(); };
+}
+function saveHealth(){ localStorage.setItem('jarvis_health', JSON.stringify(health)); }
+function editMetric(key){
+  const labels={weight:'Weight (kg)',sleep:'Sleep (hours)',steps:'Steps today','health-note':'Health note'};
+  const val=prompt(`JARVIS: Enter ${labels[key]}:`, health[key]||'');
+  if(val===null) return;
+  health[key]=val; saveHealth(); loadHealth();
+}
+
+// ── BUDGET (localStorage) ─────────────────────────────────────────────
+let budget = {};
+function loadBudget(){
+  try{ budget=JSON.parse(localStorage.getItem('jarvis_budget')||'{}'); }catch(e){ budget={}; }
+  renderBudget();
+}
+function renderBudget(){
+  const income=parseFloat(budget.income)||0;
+  const spent=parseFloat(budget.spent)||0;
+  const remaining=income-spent;
+  const pct=income>0?Math.min((spent/income)*100,100):0;
+  document.getElementById('b-income').textContent=income?income.toLocaleString():'—';
+  document.getElementById('b-spent').textContent=spent?spent.toLocaleString():'—';
+  const rb=document.getElementById('b-remaining');
+  rb.textContent=income?remaining.toLocaleString():'—';
+  rb.className=`budget-val balance ${remaining>income*.3?'ok':remaining>0?'warn':'crit'}`;
+  const fb=document.getElementById('budget-fill-bar');
+  fb.style.width=pct+'%';
+  fb.style.background=pct<60?'var(--g)':pct<85?'var(--o)':'var(--r)';
+  // Categories
+  const cats=budget.cats||[];
+  document.getElementById('budget-cats').innerHTML=cats.map((c,i)=>`
+    <div class="budget-row">
+      <span class="budget-lbl">${esc(c.name.toUpperCase())}</span>
+      <span class="budget-val expense" onclick="editBudgetCatAmt(${i})">${parseFloat(c.amount||0).toLocaleString()}</span>
+    </div>`).join('');
+}
+function editBudget(key){
+  const labels={income:'Monthly income (AED)',spent:'Total spent this month (AED)'};
+  const val=prompt(`JARVIS: Enter ${labels[key]}:`, budget[key]||'');
+  if(val===null) return;
+  budget[key]=val; localStorage.setItem('jarvis_budget', JSON.stringify(budget)); renderBudget();
+}
+function addBudgetCat(){
+  const name=prompt('JARVIS: Category name (e.g. HOUSING, FOOD, TRANSPORT):');
+  if(!name) return;
+  const amt=prompt(`JARVIS: Amount for ${name.toUpperCase()} (AED):`,'0');
+  if(amt===null) return;
+  if(!budget.cats) budget.cats=[];
+  budget.cats.push({name,amount:amt});
+  localStorage.setItem('jarvis_budget', JSON.stringify(budget)); renderBudget();
+}
+function editBudgetCatAmt(i){
+  const c=budget.cats[i];
+  const val=prompt(`JARVIS: Amount for ${c.name.toUpperCase()} (AED):`, c.amount||'0');
+  if(val===null) return;
+  budget.cats[i].amount=val;
+  localStorage.setItem('jarvis_budget', JSON.stringify(budget)); renderBudget();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+(async function init(){
+  await new Promise(r=>setTimeout(r,600));
+  loadReminders();
+  loadHealth();
+  loadBudget();
+  // Restore saved directives if any
+  const savedDirs=localStorage.getItem('jarvis_directives');
+  if(savedDirs) loadDirectives();
+
+  await Promise.all([loadEmail(),loadCalendar(),loadNews()]);
+
+  const h=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Dubai'})).getHours();
+  const g=h<12?'Good morning':h<17?'Good afternoon':'Good evening';
+  setTimeout(()=>speak(`${g}, Mr Male. All systems are online. Inbox scanned, schedule loaded, voice agent standing by.`),1000);
+
+  // AI terminal status
+  if(!HAS_COWORK){
+    fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'ping'})})
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{
+        if(d&&d.response&&!d.response.includes('ANTHROPIC_API_KEY')){
+          document.querySelector('#ai-dot .dot').className='dot on';
+        } else {
+          document.querySelector('#ai-dot .dot').className='dot off';
+        }
+      }).catch(()=>{ document.querySelector('#ai-dot .dot').className='dot off'; });
+  }
+})();
+</script>
+</body>
+</html>
